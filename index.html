@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fire Detection AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Cairo:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    :root {
+      --fire1: #ff4500;
+      --fire2: #ff8c00;
+      --fire3: #ffd700;
+      --dark: #0a0a0f;
+      --card: #16161f;
+      --border: rgba(255,69,0,0.25);
+      --safe: #00e676;
+      --danger: #ff1744;
+    }
+ 
+    html, body {
+      min-height: 100vh;
+      background: var(--dark);
+      font-family: 'Cairo', sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+    }
+ 
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 80%, rgba(255,69,0,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 30% at 80% 90%, rgba(255,140,0,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 80% 20% at 50% 100%, rgba(255,215,0,0.04) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+      animation: bgPulse 6s ease-in-out infinite alternate;
+    }
+ 
+    @keyframes bgPulse { from { opacity: 0.6; } to { opacity: 1; } }
+ 
+    .embers {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+ 
+    .ember {
+      position: absolute; bottom: -10px;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--fire2);
+      animation: rise linear infinite; opacity: 0;
+    }
+ 
+    @keyframes rise {
+      0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0.8; }
+      50%  { transform: translateY(-40vh) translateX(var(--dx)) scale(0.7); opacity: 0.5; }
+      100% { transform: translateY(-90vh) translateX(var(--dx2)) scale(0.2); opacity: 0; }
+    }
+ 
+    .wrapper {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 20px 60px;
+    }
+ 
+    header { text-align: center; margin-bottom: 48px; }
+ 
+    .logo-ring {
+      width: 90px; height: 90px;
+      margin: 0 auto 20px; border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--fire1), var(--fire2), var(--fire3), var(--fire1));
+      display: flex; align-items: center; justify-content: center;
+      animation: spin 8s linear infinite;
+      box-shadow: 0 0 40px rgba(255,69,0,0.5), 0 0 80px rgba(255,69,0,0.2);
+    }
+ 
+    @keyframes spin { to { transform: rotate(360deg); } }
+ 
+    .logo-inner {
+      width: 74px; height: 74px; border-radius: 50%;
+      background: var(--dark);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      animation: spin 8s linear infinite reverse;
+    }
+ 
+    h1 {
+      font-family: 'Black Ops One', cursive;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, var(--fire1), var(--fire2), var(--fire3));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1.1;
+    }
+ 
+    .subtitle {
+      margin-top: 8px; color: rgba(255,255,255,0.45);
+      font-size: 0.95rem; letter-spacing: 1px;
+    }
+ 
+    .card {
+      width: 100%; max-width: 520px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 24px; padding: 36px;
+      box-shadow: 0 0 60px rgba(255,69,0,0.08), 0 20px 60px rgba(0,0,0,0.6);
+      position: relative; overflow: hidden;
+    }
+ 
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--fire1), var(--fire2), var(--fire3), transparent);
+    }
+ 
+    .upload-zone {
+      border: 2px dashed rgba(255,69,0,0.35); border-radius: 16px;
+      padding: 32px 20px; text-align: center; cursor: pointer;
+      transition: all 0.3s ease; position: relative;
+      background: rgba(255,69,0,0.03); margin-bottom: 28px;
+    }
+ 
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--fire2); background: rgba(255,69,0,0.07); transform: scale(1.01);
+    }
+ 
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+ 
+    .upload-icon {
+      font-size: 2.8rem; margin-bottom: 12px; display: block;
+      animation: float 3s ease-in-out infinite;
+    }
+ 
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+ 
+    .upload-text { font-weight: 600; font-size: 1rem; color: rgba(255,255,255,0.8); }
+    .upload-hint { font-size: 0.8rem; color: rgba(255,255,255,0.3); margin-top: 4px; }
+ 
+    .preview-wrap {
+      position: relative; margin-bottom: 28px;
+      border-radius: 16px; overflow: hidden; display: none;
+    }
+ 
+    .preview-wrap.show { display: block; }
+ 
+    .preview-wrap img {
+      width: 100%; max-height: 280px; object-fit: cover;
+      display: block; border-radius: 16px;
+    }
+ 
+    .preview-label {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(0,0,0,0.7); color: var(--fire2);
+      font-size: 0.72rem; font-weight: 700; padding: 4px 10px;
+      border-radius: 20px; letter-spacing: 1px; text-transform: uppercase;
+      border: 1px solid rgba(255,140,0,0.3);
+    }
+ 
+    .change-btn {
+      position: absolute; bottom: 12px; left: 12px;
+      background: rgba(0,0,0,0.75); color: #fff;
+      font-family: 'Cairo', sans-serif; font-size: 0.8rem;
+      padding: 5px 14px; border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px; cursor: pointer; transition: all 0.2s;
+    }
+ 
+    .change-btn:hover { background: rgba(255,69,0,0.5); border-color: var(--fire1); }
+ 
+    .predict-btn {
+      width: 100%; padding: 16px;
+      font-family: 'Black Ops One', cursive; font-size: 1.1rem; letter-spacing: 2px;
+      background: linear-gradient(135deg, var(--fire1), var(--fire2));
+      color: #fff; border: none; border-radius: 14px; cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(255,69,0,0.35);
+    }
+ 
+    .predict-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(255,69,0,0.5); }
+    .predict-btn:active { transform: translateY(0); }
+    .predict-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+ 
+    .btn-shimmer {
+      position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: shimmer 2.5s linear infinite;
+    }
+ 
+    @keyframes shimmer { to { left: 180%; } }
+ 
+    .spinner {
+      display: none; width: 22px; height: 22px;
+      border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      border-radius: 50%; animation: rotate 0.8s linear infinite; margin: 0 auto;
+    }
+ 
+    @keyframes rotate { to { transform: rotate(360deg); } }
+ 
+    .result-box {
+      margin-top: 28px; border-radius: 16px; padding: 24px;
+      text-align: center; display: none;
+      animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+ 
+    @keyframes popIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+ 
+    .result-box.fire {
+      background: rgba(255,23,68,0.1); border: 1px solid rgba(255,23,68,0.4);
+      box-shadow: 0 0 40px rgba(255,23,68,0.15), inset 0 0 40px rgba(255,23,68,0.05);
+    }
+ 
+    .result-box.safe {
+      background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.3);
+      box-shadow: 0 0 40px rgba(0,230,118,0.1), inset 0 0 40px rgba(0,230,118,0.04);
+    }
+ 
+    .result-icon {
+      font-size: 3.5rem; display: block; margin-bottom: 12px;
+      animation: iconBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both;
+    }
+ 
+    @keyframes iconBounce {
+      from { transform: scale(0) rotate(-20deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+ 
+    .result-label {
+      font-family: 'Black Ops One', cursive; font-size: 1.6rem;
+      letter-spacing: 2px; margin-bottom: 8px;
+    }
+ 
+    .result-box.fire .result-label { color: var(--danger); }
+    .result-box.safe .result-label { color: var(--safe); }
+ 
+    .result-detail { font-size: 0.9rem; color: rgba(255,255,255,0.55); line-height: 1.6; }
+ 
+    .error-msg {
+      margin-top: 16px; color: #ff6b6b; font-size: 0.85rem;
+      text-align: center; display: none;
+    }
+ 
+    footer { margin-top: 40px; color: rgba(255,255,255,0.2); font-size: 0.78rem; text-align: center; }
+  </style>
+</head>
+<body>
+ 
+<div class="embers" id="embers"></div>
+ 
+<div class="wrapper">
+  <header>
+    <div class="logo-ring">
+      <div class="logo-inner">🔥</div>
+    </div>
+    <h1>FIRE DETECTOR</h1>
+    <p class="subtitle">AI Detection System</p>
+  </header>
+ 
+  <div class="card">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*"/>
+      <span class="upload-icon">📸</span>
+      <p class="upload-text">Upload an image to analyze</p>
+      <p class="upload-hint">PNG / JPG / WEBP</p>
+    </div>
+ 
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" src="" alt="preview"/>
+      <span class="preview-label">Preview</span>
+      <button class="change-btn" id="changeBtn">Change Image</button>
+    </div>
+ 
+    <button class="predict-btn" id="predictBtn" onclick="send()">
+      <div class="btn-shimmer"></div>
+      <span id="btnText">🔍 &nbsp;Predict</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+ 
+    <div class="result-box" id="resultBox">
+      <span class="result-icon" id="resultIcon"></span>
+      <div class="result-label" id="resultLabel"></div>
+      <p class="result-detail" id="resultDetail"></p>
+    </div>
+ 
+    <p class="error-msg" id="errorMsg"></p>
+  </div>
+ 
+  <footer>Fire Detection AI &nbsp;•&nbsp; Flask Backend</footer>
+</div>
+ 
+<script>
+  /* ── Ember particles ── */
+  const container = document.getElementById('embers');
+  for (let i = 0; i < 28; i++) {
+    const e = document.createElement('div');
+    e.className = 'ember';
+    const hue  = Math.random() > 0.5 ? '#ff6b00' : '#ffd700';
+    const size = 2 + Math.random() * 4;
+    const dx   = (Math.random() - 0.5) * 120;
+    e.style.cssText = `
+      left: ${Math.random() * 100}%;
+      width: ${size}px; height: ${size}px;
+      background: ${hue};
+      animation-duration: ${5 + Math.random() * 8}s;
+      animation-delay: ${Math.random() * 8}s;
+      --dx: ${dx}px; --dx2: ${dx * 1.6}px;
+      box-shadow: 0 0 6px 1px ${hue};
+    `;
+    container.appendChild(e);
+  }
+ 
+  /* ── File preview ── */
+  document.getElementById('fileInput').addEventListener('change', handleFile);
+ 
+  document.getElementById('changeBtn').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+  });
+ 
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFileDirect(e.dataTransfer.files[0]);
+  });
+ 
+  function handleFile(e) {
+    if (e.target.files[0]) handleFileDirect(e.target.files[0]);
+  }
+ 
+  function handleFileDirect(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      document.getElementById('previewImg').src = ev.target.result;
+      document.getElementById('uploadZone').style.display = 'none';
+      document.getElementById('previewWrap').classList.add('show');
+      const rb = document.getElementById('resultBox');
+      rb.style.display = 'none'; rb.className = 'result-box';
+      document.getElementById('errorMsg').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+ 
+  /* ── Send to Flask backend ── */
+  async function send() {
+    const file = document.getElementById('fileInput').files[0];
+ 
+    if (!file) {
+      showError('Please select an image first 😅');
+      return;
+    }
+ 
+    setLoading(true);
+    document.getElementById('resultBox').style.display = 'none';
+    document.getElementById('errorMsg').style.display  = 'none';
+ 
+    const formData = new FormData();
+    formData.append('image', file);
+ 
+    try {
+      const response = await fetch('http://127.0.0.1:5000/predict', {
+        method: 'POST',
+        body: formData
+      });
+ 
+      const data = await response.json();
+      showResult(data.result);
+ 
+    } catch (err) {
+      console.error(err);
+      showError('Backend error — make sure the Flask server is running.');
+    } finally {
+      setLoading(false);
+    }
+  }
+ 
+  /* ── Display result ── */
+  function showResult(resultText) {
+    const box    = document.getElementById('resultBox');
+    const icon   = document.getElementById('resultIcon');
+    const label  = document.getElementById('resultLabel');
+    const detail = document.getElementById('resultDetail');
+ 
+    const isFire = /fire/i.test(resultText);
+ 
+    if (isFire) {
+      box.className      = 'result-box fire';
+      icon.textContent   = '🔥';
+      label.textContent  = 'FIRE DETECTED?';
+    } else {
+      box.className      = 'result-box safe';
+      icon.textContent   = '✅';
+      label.textContent  = 'NO FIRE';
+    }
+ 
+    detail.textContent = resultText;
+    box.style.display  = 'block';
+  }
+ 
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg; el.style.display = 'block';
+  }
+ 
+  function setLoading(on) {
+    const btn     = document.getElementById('predictBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    btn.disabled          = on;
+    btnText.style.display = on ? 'none' : 'inline';
+    spinner.style.display = on ? 'block' : 'none';
+  }
+</script>
+</body>
+</html>
